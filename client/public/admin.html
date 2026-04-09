@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexChat Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #090a0c; --surface: #0d0f12; --card: #131619;
+      --elevated: #1a1d22; --hover: #21262d;
+      --border: #1e2530; --border-s: #2d3545;
+      --text: #e8eaf0; --secondary: #8892a0; --muted: #4a5568;
+      --accent: #00e5ff; --accent-g: rgba(0,229,255,.12);
+      --green: #00ff87; --yellow: #ffd600;
+      --red: #ff3d57; --orange: #ff9500;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+    /* Layout */
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* Sidebar */
+    nav { background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; display: flex; flex-direction: column; }
+    .nav-logo { padding: 0 20px 24px; font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--accent); letter-spacing: -0.5px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .nav-logo span { color: var(--secondary); }
+    .nav-link { display: flex; align-items: center; gap: 10px; padding: 9px 20px; color: var(--secondary); cursor: pointer; transition: all .12s; font-size: 13px; border-left: 2px solid transparent; text-decoration: none; }
+    .nav-link:hover { background: var(--hover); color: var(--text); }
+    .nav-link.active { background: var(--accent-g); color: var(--accent); border-left-color: var(--accent); }
+    .nav-section { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding: 12px 20px 4px; }
+    .nav-spacer { flex: 1; }
+    .nav-user { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .nav-user-name { font-size: 13px; font-weight: 600; }
+    .nav-user-role { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+
+    /* Main */
+    main { overflow-y: auto; background: var(--bg); }
+    .page { display: none; padding: 32px; }
+    .page.active { display: block; }
+
+    /* Page header */
+    .page-header { margin-bottom: 28px; }
+    .page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+    .page-subtitle { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* Stat cards */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .stat-card.blue::before { background: var(--accent); }
+    .stat-card.green::before { background: var(--green); }
+    .stat-card.yellow::before { background: var(--yellow); }
+    .stat-card.red::before { background: var(--red); }
+    .stat-label { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-sub { font-family: var(--mono); font-size: 11px; color: var(--secondary); margin-top: 6px; }
+
+    /* Cards */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+    .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--secondary); }
+    .card-body { padding: 20px; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; }
+    th { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--secondary); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--hover); color: var(--text); }
+
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 3px; font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .badge-green { background: rgba(0,255,135,.1); color: var(--green); }
+    .badge-yellow { background: rgba(255,214,0,.1); color: var(--yellow); }
+    .badge-red { background: rgba(255,61,87,.1); color: var(--red); }
+    .badge-blue { background: var(--accent-g); color: var(--accent); }
+    .badge-muted { background: var(--elevated); color: var(--muted); }
+
+    /* Buttons */
+    .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-family: var(--mono); font-size: 11px; font-weight: 500; transition: all .12s; }
+    .btn-danger { background: rgba(255,61,87,.15); color: var(--red); border: 1px solid rgba(255,61,87,.2); }
+    .btn-danger:hover { background: rgba(255,61,87,.25); }
+    .btn-accent { background: var(--accent); color: #090a0c; }
+    .btn-accent:hover { background: #00b8d4; }
+    .btn-ghost { background: none; color: var(--secondary); border: 1px solid var(--border-s); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Avatar */
+    .avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; font-weight: 600; color: #090a0c; flex-shrink: 0; }
+
+    /* Input */
+    input.input, select.input {
+      background: var(--elevated); border: 1px solid var(--border-s); border-radius: 4px;
+      padding: 7px 12px; color: var(--text); font-family: var(--mono); font-size: 12px;
+      outline: none; transition: border-color .15s;
+    }
+    input.input:focus, select.input:focus { border-color: var(--accent); }
+    input.input::placeholder { color: var(--muted); }
+
+    /* Retention table */
+    .retention-cell { text-align: center; padding: 8px 4px; font-family: var(--mono); font-size: 12px; }
+    .retention-pct { color: var(--text); }
+    .heat-0 { background: rgba(0,229,255,0); }
+    .heat-1 { background: rgba(0,229,255,.06); }
+    .heat-2 { background: rgba(0,229,255,.12); }
+    .heat-3 { background: rgba(0,229,255,.2); }
+    .heat-4 { background: rgba(0,229,255,.3); }
+    .heat-5 { background: rgba(0,229,255,.45); color: #090a0c !important; }
+
+    /* Chart container */
+    .chart-wrap { position: relative; height: 240px; }
+
+    /* Search bar */
+    .search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+    .search-bar input { flex: 1; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 40px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+    .loading::after { content: '...'; animation: dots 1.2s infinite; }
+    @keyframes dots { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* Auth gate */
+    #auth-gate { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .auth-card { background: var(--card); border: 1px solid var(--border-s); border-radius: 12px; padding: 40px; width: 360px; }
+    .auth-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .auth-card p { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+    .error-msg { color: var(--red); font-size: 12px; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+
+<!-- Auth gate -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <h2>Admin Login</h2>
+    <p>NexChat Admin Dashboard</p>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="input" id="ag-username" placeholder="admin username" style="width:100%">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="input" type="password" id="ag-password" placeholder="••••••••" style="width:100%">
+    </div>
+    <button class="btn btn-accent" style="width:100%;padding:10px;" onclick="adminLogin()">Login →</button>
+    <div class="error-msg" id="ag-error"></div>
+  </div>
+</div>
+
+<!-- Admin layout -->
+<div class="layout" id="admin-layout" style="display:none;">
+  <!-- Sidebar nav -->
+  <nav>
+    <div class="nav-logo">NEX<span>ADMIN</span></div>
+
+    <div class="nav-section">Overview</div>
+    <a class="nav-link active" onclick="showPage('overview')" href="#">📊 Dashboard</a>
+    <a class="nav-link" onclick="showPage('analytics')" href="#">📈 Analytics</a>
+
+    <div class="nav-section">Manage</div>
+    <a class="nav-link" onclick="showPage('users')" href="#">👥 Users</a>
+    <a class="nav-link" onclick="showPage('rooms')" href="#">💬 Rooms</a>
+    <a class="nav-link" onclick="showPage('webhooks')" href="#">🔗 Webhooks</a>
+
+    <div class="nav-section">System</div>
+    <a class="nav-link" onclick="showPage('audit')" href="#">📋 Audit Log</a>
+    <a class="nav-link" onclick="showPage('metrics')" href="#">⚡ Metrics</a>
+
+    <div class="nav-spacer"></div>
+    <div class="nav-user">
+      <div class="avatar" id="nav-avatar" style="background:#00e5ff">?</div>
+      <div>
+        <div class="nav-user-name" id="nav-username">—</div>
+        <div class="nav-user-role">ADMIN</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main>
+
+    <!-- OVERVIEW -->
+    <div class="page active" id="page-overview">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle" id="overview-updated">Loading...</div>
+      </div>
+
+      <div class="stat-grid" id="stat-grid">
+        <div class="loading">Loading stats</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Message Volume (24h)</span></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="volume-chart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Top Active Users (7d)</span></div>
+          <div class="card-body" id="top-users-body"><div class="loading">Loading</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><span class="card-title">Recent Sign-ups</span></div>
+        <table id="signups-table">
+          <thead><tr><th>User</th><th>Email</th><th>Status</th><th>Joined</th></tr></thead>
+          <tbody><tr><td colspan="4" class="loading">Loading</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
+      <div class="page-header">
+        <div class="page-title">Analytics</div>
+        <div class="page-subtitle">Retention cohorts and usage patterns</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Weekly Cohort Retention</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted);">% of cohort active each week</span>
+        </div>
+        <div class="card-body" id="retention-body"><div class="loading">Loading</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Most Active Rooms</span></div>
+          <div class="card-body" id="active-rooms-body"><div class="loading">Loading</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">DB Statistics</span></div>
+          <div class="card-body" id="db-stats-body"><div class="loading">Loading</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <div class="page-title">Users</div>
+        <div class="page-subtitle">Search, manage, and moderate user accounts</div>
+      </div>
+      <div class="search-bar">
+        <input class="input" id="user-search" placeholder="Search by username, name or email..." oninput="searchUsers(this.value)">
+        <select class="input" onchange="filterUserStatus(this.value)">
+          <option value="">All statuses</option>
+          <option value="online">Online</option>
+          <option value="away">Away</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+      <div class="card">
+        <table id="users-table">
+          <thead><tr><th>User</th><th>Email</th><th>Status</th><th>Rooms</th><th>Messages</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody><tr><td colspan="7" class="loading">Loading</td></tr></tbody>
+        </table>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;" id="user-pagination"></div>
+    </div>
+
+    <!-- ROOMS -->
+    <div class="page" id="page-rooms">
+      <div class="page-header">
+        <div class="page-title">Rooms</div>
+        <div class="page-subtitle">View and manage all channels and direct messages</div>
+      </div>
+      <div class="card">
+        <table id="rooms-table">
+          <thead><tr><th>Room</th><th>Type</th><th>Members</th><th>Messages</th><th>Last Activity</th><th>Actions</th></tr></thead>
+          <tbody><tr><td colspan="6" class="loading">Loading</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AUDIT LOG -->
+    <div class="page" id="page-audit">
+      <div class="page-header">
+        <div class="page-title">Audit Log</div>
+        <div class="page-subtitle">All admin actions and system events</div>
+      </div>
+      <div class="search-bar">
+        <input class="input" id="audit-search" placeholder="Filter by action (e.g. user.banned, message.removed)..." oninput="loadAudit(this.value)">
+        <button class="btn btn-ghost" onclick="loadAudit('')">Clear</button>
+      </div>
+      <div class="card">
+        <table id="audit-table">
+          <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Details</th></tr></thead>
+          <tbody><tr><td colspan="5" class="loading">Loading</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="page" id="page-metrics">
+      <div class="page-header">
+        <div class="page-title">System Metrics</div>
+        <div class="page-subtitle">Real-time server and infrastructure stats</div>
+      </div>
+      <div id="metrics-grid"><div class="loading">Loading</div></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const API = '/api';
+let TOKEN = localStorage.getItem('admin_token');
+let currentUser = null;
+let userPage = 1;
+let userSearch = '';
+let userStatus = '';
+let volumeChart = null;
+
+// ── Auth ──────────────────────────────────────────────────
+async function adminLogin() {
+  const username = document.getElementById('ag-username').value.trim();
+  const password = document.getElementById('ag-password').value;
+  const errEl = document.getElementById('ag-error');
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    TOKEN = data.token;
+    currentUser = data.user;
+    localStorage.setItem('admin_token', TOKEN);
+    initAdmin();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  }
+}
+
+async function api(path, method = 'GET', body = null) {
+  const opts = { method, headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (res.status === 401) { localStorage.removeItem('admin_token'); location.reload(); }
+  if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Request failed'); }
+  return res.json();
+}
+
+document.getElementById('ag-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') adminLogin();
+});
+
+// ── Init ──────────────────────────────────────────────────
+async function initAdmin() {
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('admin-layout').style.display = 'grid';
+
+  if (currentUser) {
+    document.getElementById('nav-username').textContent = currentUser.display_name;
+    document.getElementById('nav-avatar').textContent = currentUser.display_name.charAt(0).toUpperCase();
+  }
+
+  await loadOverview();
+}
+
+// Auto-login if token exists
+if (TOKEN) {
+  api('/auth/me').then(d => {
+    currentUser = d.user;
+    initAdmin();
+  }).catch(() => localStorage.removeItem('admin_token'));
+}
+
+// ── Navigation ────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  const loaders = {
+    overview: loadOverview,
+    analytics: loadAnalytics,
+    users: () => loadUsers(1),
+    rooms: loadRooms,
+    audit: () => loadAudit(''),
+    metrics: loadMetrics,
+  };
+  loaders[name]?.();
+}
+
+// ── Overview ──────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const data = await api('/admin/overview');
+    document.getElementById('overview-updated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+    // Stat cards
+    const u = data.users, m = data.messages, r = data.rooms;
+    document.getElementById('stat-grid').innerHTML = `
+      ${statCard('Total Users', u.total, `${u.onlineNow} online now`, 'blue')}
+      ${statCard('Messages Today', m.last_day, `${m.last_hour} in last hour`, 'green')}
+      ${statCard('Total Rooms', r.total, `${r.groups} groups · ${r.dms} DMs`, 'yellow')}
+      ${statCard('Total Messages', m.total, 'all time', 'blue')}
+    `;
+
+    // Volume chart
+    const labels = data.messageVolume.map(v => new Date(v.hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    const counts = data.messageVolume.map(v => v.count);
+    renderVolumeChart(labels, counts);
+
+    // Top users
+    document.getElementById('top-users-body').innerHTML = data.topUsers.map(u => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div class="avatar" style="background:${hashColor(u.username)}">${u.display_name.charAt(0)}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${u.display_name}</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">@${u.username}</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--accent)">${u.message_count} msgs</div>
+      </div>`).join('') || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">No data</div>';
+
+    // Recent signups
+    const tbody = document.querySelector('#signups-table tbody');
+    tbody.innerHTML = data.recentSignups.map(u => `
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <div class="avatar" style="background:${hashColor(u.username)}">${u.display_name.charAt(0)}</div>
+          <div><div style="font-weight:500;color:var(--text)">${u.display_name}</div><div style="font-family:var(--mono);font-size:10px">@${u.username}</div></div>
+        </div></td>
+        <td>${u.email}</td>
+        <td><span class="badge ${statusBadge(u.status)}">${u.status}</span></td>
+        <td style="font-family:var(--mono);font-size:11px">${timeAgo(u.created_at)}</td>
+      </tr>`).join('');
+  } catch (err) {
+    console.error('Overview error:', err);
+  }
+}
+
+function renderVolumeChart(labels, data) {
+  if (volumeChart) { volumeChart.destroy(); }
+  const ctx = document.getElementById('volume-chart').getContext('2d');
+  volumeChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: 'rgba(0,229,255,0.3)',
+        borderColor: 'rgba(0,229,255,0.8)',
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e2530' }, ticks: { color: '#4a5568', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
+        y: { grid: { color: '#1e2530' }, ticks: { color: '#4a5568', font: { family: 'JetBrains Mono', size: 10 } }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+// ── Analytics ─────────────────────────────────────────────
+async function loadAnalytics() {
+  try {
+    const [retentionData, metricsData] = await Promise.all([
+      api('/admin/stats/retention'),
+      api('/metrics'),
+    ]);
+
+    // Retention heatmap
+    const ret = retentionData.retention;
+    if (ret.length) {
+      let html = `<div style="overflow-x:auto"><table style="min-width:500px">
+        <thead><tr>
+          <th>Cohort</th><th>Size</th>
+          <th>Week 0</th><th>Week 1</th><th>Week 2</th><th>Week 4</th>
+        </tr></thead><tbody>`;
+      for (const r of ret) {
+        const w0 = pct(r.week_0, r.cohort_size);
+        const w1 = pct(r.week_1, r.cohort_size);
+        const w2 = pct(r.week_2, r.cohort_size);
+        const w4 = pct(r.week_4, r.cohort_size);
+        html += `<tr>
+          <td style="font-family:var(--mono);font-size:11px">${r.cohort}</td>
+          <td style="font-family:var(--mono);font-size:12px;color:var(--text)">${r.cohort_size}</td>
+          ${heatCell(w0)} ${heatCell(w1)} ${heatCell(w2)} ${heatCell(w4)}
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+      document.getElementById('retention-body').innerHTML = html;
+    } else {
+      document.getElementById('retention-body').innerHTML = '<div style="color:var(--muted);text-align:center;padding:24px;font-size:12px;">Not enough data yet — send some messages!</div>';
+    }
+
+    // Active rooms
+    const rooms = metricsData.database.mostActiveRoomsLastHour;
+    document.getElementById('active-rooms-body').innerHTML = rooms.length ? rooms.map(r => `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--secondary)">#${r.name}</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--accent)">${r.msg_count} msgs/hr</span>
+      </div>`).join('') : '<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">No activity in last hour</div>';
+
+    // DB stats
+    const sys = metricsData.system;
+    document.getElementById('db-stats-body').innerHTML = `
+      ${dbRow('Heap Used', sys.memory.heapUsedMB + 'MB')}
+      ${dbRow('RSS Memory', sys.memory.rssMB + 'MB')}
+      ${dbRow('CPU Cores', sys.cpuCount)}
+      ${dbRow('Load (1m)', sys.loadAvg[0])}
+      ${dbRow('Load (5m)', sys.loadAvg[1])}
+      ${dbRow('Uptime', fmtUptime(metricsData.server.uptime))}
+    `;
+  } catch (err) {
+    console.error('Analytics error:', err);
+    document.getElementById('retention-body').innerHTML = '<div style="color:var(--red);padding:16px;font-size:12px;">Failed to load analytics. Are you an admin?</div>';
+  }
+}
+
+// ── Users ─────────────────────────────────────────────────
+let userSearchTimeout;
+function searchUsers(val) {
+  clearTimeout(userSearchTimeout);
+  userSearch = val;
+  userSearchTimeout = setTimeout(() => loadUsers(1), 300);
+}
+function filterUserStatus(val) { userStatus = val; loadUsers(1); }
+
+async function loadUsers(page = 1) {
+  userPage = page;
+  const params = `?page=${page}&limit=15&search=${encodeURIComponent(userSearch)}&status=${userStatus}`;
+  try {
+    const data = await api('/admin/users' + params);
+    const tbody = document.querySelector('#users-table tbody');
+    tbody.innerHTML = data.users.map(u => `
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px">
+          <div class="avatar" style="background:${hashColor(u.username)}">${u.display_name.charAt(0)}</div>
+          <div><div style="font-weight:500;color:var(--text)">${u.display_name}</div><div style="font-family:var(--mono);font-size:10px">@${u.username}</div></div>
+        </div></td>
+        <td>${u.email}</td>
+        <td><span class="badge ${statusBadge(u.status)}">${u.status}</span></td>
+        <td style="font-family:var(--mono)">${u.room_count}</td>
+        <td style="font-family:var(--mono)">${u.message_count}</td>
+        <td style="font-family:var(--mono);font-size:11px">${timeAgo(u.created_at)}</td>
+        <td><button class="btn btn-danger" onclick="banUser('${u.id}', '${escHtml(u.display_name)}')">Ban</button></td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">No users found</td></tr>';
+
+    // Pagination
+    const pages = data.pages;
+    document.getElementById('user-pagination').innerHTML = `
+      <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${data.total} total users · page ${page}/${pages}</span>
+      <div style="display:flex;gap:6px">
+        ${page > 1 ? `<button class="btn btn-ghost" onclick="loadUsers(${page-1})">← Prev</button>` : ''}
+        ${page < pages ? `<button class="btn btn-ghost" onclick="loadUsers(${page+1})">Next →</button>` : ''}
+      </div>`;
+  } catch (err) {
+    document.querySelector('#users-table tbody').innerHTML = `<tr><td colspan="7" style="color:var(--red);padding:16px">${err.message}</td></tr>`;
+  }
+}
+
+async function banUser(userId, name) {
+  const reason = prompt(`Ban reason for ${name}:`);
+  if (!reason) return;
+  const hours = parseInt(prompt('Duration in hours (24 = 1 day):') || '24');
+  try {
+    await api(`/admin/users/${userId}/ban`, 'POST', { reason, durationHours: hours });
+    alert(`${name} has been banned for ${hours} hours.`);
+    loadUsers(userPage);
+  } catch (err) {
+    alert('Failed: ' + err.message);
+  }
+}
+
+// ── Rooms ─────────────────────────────────────────────────
+async function loadRooms() {
+  try {
+    const data = await api('/admin/rooms');
+    const tbody = document.querySelector('#rooms-table tbody');
+    tbody.innerHTML = data.rooms.map(r => `
+      <tr>
+        <td><div style="font-weight:500;color:var(--text)">${r.name || 'DM'}</div>${r.description ? `<div style="font-size:11px;color:var(--muted)">${r.description}</div>` : ''}</td>
+        <td><span class="badge ${r.room_type === 'group' ? 'badge-blue' : 'badge-muted'}">${r.room_type}</span></td>
+        <td style="font-family:var(--mono)">${r.member_count}</td>
+        <td style="font-family:var(--mono)">${r.message_count}</td>
+        <td style="font-family:var(--mono);font-size:11px">${r.last_activity ? timeAgo(r.last_activity) : 'Never'}</td>
+        <td><button class="btn btn-danger" onclick="deleteRoom('${r.id}', '${escHtml(r.name || 'DM')}')">Delete</button></td>
+      </tr>`).join('');
+  } catch (err) {
+    console.error('Rooms error:', err);
+  }
+}
+
+async function deleteRoom(roomId, name) {
+  if (!confirm(`Delete room "${name}"? All messages will be soft-deleted.`)) return;
+  try {
+    await api(`/admin/rooms/${roomId}`, 'DELETE');
+    loadRooms();
+  } catch (err) {
+    alert('Failed: ' + err.message);
+  }
+}
+
+// ── Audit Log ─────────────────────────────────────────────
+async function loadAudit(action) {
+  try {
+    const data = await api(`/admin/audit?limit=50${action ? '&action=' + encodeURIComponent(action) : ''}`);
+    const tbody = document.querySelector('#audit-table tbody');
+    tbody.innerHTML = data.logs.map(l => `
+      <tr>
+        <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${new Date(l.created_at).toLocaleString()}</td>
+        <td>${l.actor ? `<span style="font-family:var(--mono);font-size:12px">@${l.actor.username}</span>` : '—'}</td>
+        <td><span class="badge badge-blue">${l.action}</span></td>
+        <td style="font-family:var(--mono);font-size:11px">${l.entity_type || '—'}</td>
+        <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis">${l.metadata ? JSON.stringify(l.metadata).slice(0, 80) : '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No audit entries</td></tr>';
+  } catch (err) {
+    console.error('Audit error:', err);
+  }
+}
+
+// ── Metrics ───────────────────────────────────────────────
+async function loadMetrics() {
+  try {
+    const data = await api('/metrics');
+    const db = data.database, sys = data.system, t = data.traffic;
+    document.getElementById('metrics-grid').innerHTML = `
+      <div class="stat-grid">
+        ${statCard('Users', db.users, `${db.onlineUsers} online`, 'blue')}
+        ${statCard('Rooms', db.rooms, 'total channels', 'green')}
+        ${statCard('Messages', db.messages, 'all time', 'yellow')}
+        ${statCard('Uptime', fmtUptime(data.server.uptime), data.server.nodeVersion, 'blue')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Traffic</span></div>
+          <div class="card-body">
+            ${dbRow('Messages sent', t.messagesTotal)} ${dbRow('Last 5 min', t.messagesLast5Min)}
+            ${dbRow('Connections', t.connectionsTotal)} ${dbRow('Errors', t.errorsTotal)}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">System</span></div>
+          <div class="card-body">
+            ${dbRow('CPU cores', sys.cpuCount)} ${dbRow('Load avg', sys.loadAvg.join(', '))}
+            ${dbRow('Mem used', sys.memory.usedPercent + '%')} ${dbRow('Heap', sys.memory.heapUsedMB + 'MB')}
+            ${dbRow('RSS', sys.memory.rssMB + 'MB')} ${dbRow('Platform', sys.platform)}
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    document.getElementById('metrics-grid').innerHTML = `<div style="color:var(--red);padding:16px">${err.message}</div>`;
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────
+const COLORS = ['#00e5ff','#00ff87','#ffd600','#ff9500','#f06292','#ba68c8','#4fc3f7'];
+function hashColor(s) { let h=0; for(const c of s) h=(c.charCodeAt(0)+((h<<5)-h));return COLORS[Math.abs(h)%COLORS.length]; }
+function statusBadge(s) { return {online:'badge-green',away:'badge-yellow',busy:'badge-red',offline:'badge-muted'}[s]||'badge-muted'; }
+function pct(n, total) { return total > 0 ? Math.round((n/total)*100) : 0; }
+function heatCell(p) {
+  const lvl = p >= 80 ? 5 : p >= 60 ? 4 : p >= 40 ? 3 : p >= 20 ? 2 : p > 0 ? 1 : 0;
+  return `<td class="retention-cell heat-${lvl}"><span class="retention-pct">${p > 0 ? p + '%' : '—'}</span></td>`;
+}
+function statCard(label, value, sub, color) {
+  return `<div class="stat-card ${color}"><div class="stat-label">${label}</div><div class="stat-value">${value}</div><div class="stat-sub">${sub}</div></div>`;
+}
+function dbRow(k, v) {
+  return `<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:var(--muted);font-size:12px">${k}</span><span style="font-family:var(--mono);font-size:12px">${v}</span></div>`;
+}
+function fmtUptime(s) { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h>0?`${h}h ${m}m`:`${m}m`; }
+function escHtml(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function timeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+// Auto-refresh overview every 30s
+setInterval(() => {
+  if (document.getElementById('page-overview').classList.contains('active')) loadOverview();
+}, 30_000);
+</script>
+</body>
+</html>

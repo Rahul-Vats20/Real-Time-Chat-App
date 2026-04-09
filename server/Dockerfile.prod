@@ -1,0 +1,36 @@
+# server/Dockerfile.prod — Production multi-stage build
+# Stage 1: Install dependencies
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Stage 2: Runtime image (minimal)
+FROM node:20-alpine AS runtime
+
+# Security: run as non-root user
+RUN addgroup -g 1001 -S nexchat && \
+    adduser -u 1001 -S nexchat -G nexchat
+
+WORKDIR /app
+
+# Copy production deps from stage 1
+COPY --from=deps --chown=nexchat:nexchat /app/node_modules ./node_modules
+
+# Copy source
+COPY --chown=nexchat:nexchat . .
+
+# Create uploads directory
+RUN mkdir -p ../client/public/uploads && \
+    chown -R nexchat:nexchat ../client/public/uploads
+
+# Switch to non-root user
+USER nexchat
+
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3001/api/metrics/health || exit 1
+
+CMD ["node", "index.js"]

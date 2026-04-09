@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexchat-postgres
+    environment:
+      POSTGRES_DB: chatdb
+      POSTGRES_USER: chatuser
+      POSTGRES_PASSWORD: chatpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./server/schema_additions.sql:/docker-entrypoint-initdb.d/02-schema_additions.sql
+      - ./server/schema_v3.sql:/docker-entrypoint-initdb.d/03-schema_v3.sql
+      - ./server/schema_v4.sql:/docker-entrypoint-initdb.d/04-schema_v4.sql
+      - ./server/schema_v5.sql:/docker-entrypoint-initdb.d/05-schema_v5.sql
+      - ./server/schema_v6.sql:/docker-entrypoint-initdb.d/06-schema_v6.sql
+      - ./server/schema_v7.sql:/docker-entrypoint-initdb.d/07-schema_v7.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatuser -d chatdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Redis ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: nexchat-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Chat Server ─────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: nexchat-server
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      JWT_SECRET: change-this-to-a-secure-random-string-in-production
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: chatdb
+      POSTGRES_USER: chatuser
+      POSTGRES_PASSWORD: chatpassword
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ALLOWED_ORIGINS: http://localhost:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./client:/app/../client
+      - ./server/routes:/app/routes
+      - ./server/socket:/app/socket
+      - ./server/services:/app/services
+      - ./server/middleware:/app/middleware
+      - ./server/db:/app/db
+      - ./server/index.js:/app/index.js
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

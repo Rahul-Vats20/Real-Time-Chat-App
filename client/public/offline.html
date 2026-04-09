@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexChat — Offline</title>
+  <style>
+    :root {
+      --bg: #090a0c;
+      --surface: #131619;
+      --accent: #00e5ff;
+      --text: #e8eaf0;
+      --muted: #4a5568;
+      --border: #1e2530;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    .icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+      display: block;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.95); }
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #090a0c;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .retry-btn:hover { background: #00b8d4; transform: translateY(-1px); }
+    .status {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .status.online { color: #00ff87; }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="card">
+    <span class="icon">⚡</span>
+    <h1>You're offline</h1>
+    <p>NexChat needs an internet connection to deliver messages in real-time. Check your connection and try again.</p>
+    <button class="retry-btn" onclick="retry()">
+      ↻ Retry Connection
+    </button>
+    <div class="status" id="status">Checking connection...</div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+
+    function retry() {
+      statusEl.textContent = 'Retrying...';
+      statusEl.className = 'status';
+      fetch('/health')
+        .then(r => r.ok ? (window.location.href = '/') : setOffline())
+        .catch(setOffline);
+    }
+
+    function setOffline() {
+      statusEl.textContent = '● Still offline';
+      statusEl.className = 'status';
+    }
+
+    function setOnline() {
+      statusEl.textContent = '● Back online — redirecting...';
+      statusEl.className = 'status online';
+      setTimeout(() => window.location.href = '/', 1000);
+    }
+
+    // Auto-detect reconnection
+    window.addEventListener('online', setOnline);
+    window.addEventListener('offline', setOffline);
+
+    // Initial check
+    if (navigator.onLine) {
+      fetch('/health')
+        .then(r => r.ok ? setOnline() : setOffline())
+        .catch(setOffline);
+    } else {
+      setOffline();
+    }
+  </script>
+</body>
+</html>
