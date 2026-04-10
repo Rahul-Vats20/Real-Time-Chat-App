@@ -3,7 +3,8 @@ const { createClient } = require('redis');
 
 // Main Redis client (commands)
 const redisClient = createClient({
-  socket: {
+  url: process.env.REDIS_URL || undefined,
+  socket: !process.env.REDIS_URL ? {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
     reconnectStrategy: (retries) => {
@@ -13,8 +14,10 @@ const redisClient = createClient({
       }
       return Math.min(retries * 100, 3000);
     },
+  } : {
+    reconnectStrategy: (retries) => Math.min(retries * 100, 3000)
   },
-  password: process.env.REDIS_PASSWORD || undefined,
+  password: !process.env.REDIS_URL ? (process.env.REDIS_PASSWORD || undefined) : undefined,
 });
 
 // Subscriber client (for pub/sub - needs separate connection)

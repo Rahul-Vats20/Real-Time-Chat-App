@@ -1,13 +1,24 @@
 // db/postgres.js - PostgreSQL connection pool
 const { Pool } = require('pg');
 
+const config = process.env.DATABASE_URL 
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      host: process.env.POSTGRES_HOST || 'localhost',
+      port: parseInt(process.env.POSTGRES_PORT || '5432'),
+      database: process.env.POSTGRES_DB || 'chatdb',
+      user: process.env.POSTGRES_USER || 'chatuser',
+      password: process.env.POSTGRES_PASSWORD || 'chatpassword',
+    };
+
+// Add SSL for production (required by many cloud DBs like Supabase)
+if (process.env.NODE_ENV === 'production') {
+  config.ssl = { rejectUnauthorized: false };
+}
+
 const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'chatdb',
-  user: process.env.POSTGRES_USER || 'chatuser',
-  password: process.env.POSTGRES_PASSWORD || 'chatpassword',
-  max: 20,                    // max pool connections
+  ...config,
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });

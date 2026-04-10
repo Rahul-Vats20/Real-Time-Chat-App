@@ -32,13 +32,22 @@ const STATUS = args.includes('--status');
 const RESET = args.includes('--reset');
 
 async function getClient() {
-  const client = new Client({
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5432'),
-    database: process.env.POSTGRES_DB || 'chatdb',
-    user: process.env.POSTGRES_USER || 'chatuser',
-    password: process.env.POSTGRES_PASSWORD || 'chatpassword',
-  });
+  const config = process.env.DATABASE_URL 
+    ? { connectionString: process.env.DATABASE_URL }
+    : {
+        host: process.env.POSTGRES_HOST || 'localhost',
+        port: parseInt(process.env.POSTGRES_PORT || '5432'),
+        database: process.env.POSTGRES_DB || 'chatdb',
+        user: process.env.POSTGRES_USER || 'chatuser',
+        password: process.env.POSTGRES_PASSWORD || 'chatpassword',
+      };
+
+  // Add SSL for connection if it is not localhost (likely cloud DB)
+  if (config.connectionString || (config.host && config.host !== 'localhost' && config.host !== '127.0.0.1')) {
+    config.ssl = { rejectUnauthorized: false };
+  }
+
+  const client = new Client(config);
   await client.connect();
   return client;
 }

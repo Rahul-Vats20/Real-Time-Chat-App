@@ -55,3 +55,6 @@ coverage/
 *.pid
 *.seed
 .npmrc
+
+# Local documentation
+FREE_DEPLOYMENT.md
