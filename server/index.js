@@ -47,7 +47,7 @@ app.use(helmet({
 app.use(compression());
 app.use(cors({
   origin: ALLOWED_ORIGINS,
-  credentials: true,
+  credentials: false,
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -103,7 +103,7 @@ const io = new Server(httpServer, {
   cors: {
     origin: ALLOWED_ORIGINS,
     methods: ['GET', 'POST'],
-    credentials: true,
+    credentials: false,
   },
   pingTimeout: 60000,
   pingInterval: 25000,
