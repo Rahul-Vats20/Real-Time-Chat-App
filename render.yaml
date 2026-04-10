@@ -1,6 +1,7 @@
 services:
   - type: web
     name: nexchat
+    region: singapore
     env: node
     plan: free
     buildCommand: cd server && npm install
